@@ -49,6 +49,7 @@ body{pointer-events:none;font-family:var(--sans);color:var(--text);overflow:hidd
 .hub-section-title::after{content:'';height:1px;flex:1;background:linear-gradient(90deg,var(--border),transparent)}
 #xp-panel .hub-section-title{margin-bottom:9px}
 #fields-heading{padding:7px 10px 5px;background:rgba(10,13,18,.24);flex-shrink:0}
+#fields-feed-status{margin-left:auto;font-family:var(--mono);font-size:9px;font-weight:400;letter-spacing:0;color:var(--dim);text-transform:none}
 .xp-head{display:flex;justify-content:space-between;gap:12px;margin-bottom:7px}
 .xp-head-col{display:flex;flex-direction:column;gap:2px}
 .xp-head-col.right{text-align:right;align-items:flex-end}
@@ -248,7 +249,7 @@ body{pointer-events:none;font-family:var(--sans);color:var(--text);overflow:hidd
     </div>
   </div>
 
-  <div class="hub-section-title" id="fields-heading">Fields Overview</div>
+  <div class="hub-section-title" id="fields-heading">Fields Overview <span id="fields-feed-status">Waiting for field feed</span></div>
   <div id="summary">
     <div class="sumcell"><span class="val green" id="sum-ready">0</span>Ready</div>
     <div class="sumcell"><span class="val yellow" id="sum-soon">0</span>&lt; 1h</div>
@@ -288,7 +289,7 @@ body{pointer-events:none;font-family:var(--sans);color:var(--text);overflow:hidd
   <div id="statusbar">
     <span id="status-txt">Waiting for game data…</span>
     <span class="last-update" id="last-update">—</span>
-    <span class="pill" style="margin-left:6px;opacity:.4">v0.52</span>
+    <span class="pill" style="margin-left:6px;opacity:.4">v0.53</span>
   </div>
 
 
@@ -344,6 +345,7 @@ const penCache = (()=>{
 })();
 let apiKey=(()=>{try{return localStorage.getItem(APIKEY_KEY)||''}catch(e){return ''}})();
 let publicKey='';
+let fieldFeedState='waiting';
 let apiInterval=(()=>{try{return parseInt(localStorage.getItem(APIINTERVAL_KEY))||600000}catch(e){return 600000}})();
 
 let isGrid=false, autoTimer=null, apiPollTimer=null;
@@ -362,6 +364,8 @@ function saveApiInterval(v){try{localStorage.setItem(APIINTERVAL_KEY,v)}catch(e)
 async function fetchFieldsFromAPI(){
   if(!publicKey&&!apiKey) return;
   try{
+    fieldFeedState='loading';
+    document.getElementById('fields-feed-status').textContent='Loading live fields…';
     setStatus('Fetching API…', false);
     const usingPublicKey=!!publicKey;
     const res = await fetch(usingPublicKey?PUBLIC_FIELDS_URL:getFieldsURL(), {
@@ -382,9 +386,13 @@ async function fetchFieldsFromAPI(){
     const fields=data.fields||(data.data&&data.data.fields);
     if(!Array.isArray(fields)){setStatus('Unexpected API response', false);return}
     parseAPIFields(fields);
+    fieldFeedState='ok';
+    document.getElementById('fields-feed-status').textContent='Live feed';
     setApiStatus('✓ Automatic field feed active — last fetch: '+new Date().toLocaleTimeString(), 'ok');
     setStatus('API sync OK', true);
   }catch(e){
+    fieldFeedState='error';
+    document.getElementById('fields-feed-status').textContent='Field feed unavailable';
     setStatus('API fetch failed', false);
   }
 }
@@ -436,8 +444,10 @@ function updateFarmingBxp(raw){
 }
 function findPublicKey(value, depth=0){
   if(!value||typeof value!=='object'||depth>3) return '';
-  const direct=value.pkey||value.public_key||value.publicKey;
+  const direct=value.pkey||value.public_key||value.publicKey||value.apiKey||value.api_key||value.tycoon_public_key;
   if(direct) return String(direct);
+  const looseKey=Object.keys(value).find(k=>/^(pkey|public[_-]?key|api[_-]?key|tycoon[_-]?public[_-]?key)$/i.test(k));
+  if(looseKey&&value[looseKey]) return String(value[looseKey]);
   return findPublicKey(value.data,depth+1)||findPublicKey(value.payload,depth+1);
 }
 function renderXP(){
@@ -815,6 +825,8 @@ function onGameData(data){
     fetchFieldsFromAPI();
     startApiPolling();
   }else if(!publicKey&&!apiKey){
+    fieldFeedState='waiting';
+    document.getElementById('fields-feed-status').textContent='Waiting for public key';
     setApiStatus('Waiting for Transport Tycoon public key — open Debug for details.','error');
   }
   if(data.exp_farming_farming!==undefined) updateXP(data.exp_farming_farming);
