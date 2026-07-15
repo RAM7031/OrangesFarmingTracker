@@ -45,6 +45,10 @@ body{pointer-events:none;font-family:var(--sans);color:var(--text);overflow:hidd
 
 /* FARMING PROGRESS */
 #xp-panel{padding:10px 12px;border-bottom:1px solid var(--border);background:rgba(10,13,18,.38);flex-shrink:0}
+.hub-section-title{display:flex;align-items:center;gap:7px;font-family:var(--mono);font-size:10px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.1em}
+.hub-section-title::after{content:'';height:1px;flex:1;background:linear-gradient(90deg,var(--border),transparent)}
+#xp-panel .hub-section-title{margin-bottom:9px}
+#fields-heading{padding:7px 10px 5px;background:rgba(10,13,18,.24);flex-shrink:0}
 .xp-head{display:flex;justify-content:space-between;gap:12px;margin-bottom:7px}
 .xp-head-col{display:flex;flex-direction:column;gap:2px}
 .xp-head-col.right{text-align:right;align-items:flex-end}
@@ -155,7 +159,7 @@ body{pointer-events:none;font-family:var(--sans);color:var(--text);overflow:hidd
 
   <div id="titlebar">
     <div id="drag-handle" style="display:flex;align-items:center;gap:6px;cursor:move;flex:0 0 auto">
-      <span class="logo">🌾 Farm HUD</span>
+      <span class="logo">🌾 Farm Hub</span>
       <span class="pill live" id="live-pill">● LIVE</span>
     </div>
     <span class="spacer"></span>
@@ -195,6 +199,7 @@ body{pointer-events:none;font-family:var(--sans);color:var(--text);overflow:hidd
       <input type="text" id="proxy-url-input" placeholder="https://tycoon-proxy.your-name.workers.dev" autocomplete="off" spellcheck="false" style="flex:1;font-family:var(--mono);font-size:10px;background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.15);color:var(--text);border-radius:5px;padding:4px 8px;outline:none">
       <button class="tbtn" id="btn-proxy-save">Set</button>
     </div>
+    <div class="api-setup-row" style="margin-top:6px">
       <select id="api-interval-select" style="font-family:var(--mono);font-size:11px;background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.15);color:var(--text);border-radius:5px;padding:4px 6px;flex:1">
         <option value="0">Manual only</option>
         <option value="300000">Every 5m (200 charges/day)</option>
@@ -204,10 +209,10 @@ body{pointer-events:none;font-family:var(--sans);color:var(--text);overflow:hidd
         <option value="3600000">Every 1h (24 charges/day)</option>
       </select>
     </div>
-    <div class="api-status" id="api-status">No key saved — using proximity detection only.</div>
   </div>
 
   <div id="xp-panel">
+    <div class="hub-section-title">Farming Progress</div>
     <div class="xp-head">
       <div class="xp-head-col">
         <span class="xp-label">Farming Level</span>
@@ -233,6 +238,7 @@ body{pointer-events:none;font-family:var(--sans);color:var(--text);overflow:hidd
     </div>
   </div>
 
+  <div class="hub-section-title" id="fields-heading">Fields Overview</div>
   <div id="summary">
     <div class="sumcell"><span class="val green" id="sum-ready">0</span>Ready</div>
     <div class="sumcell"><span class="val yellow" id="sum-soon">0</span>&lt; 1h</div>
@@ -255,6 +261,7 @@ body{pointer-events:none;font-family:var(--sans);color:var(--text);overflow:hidd
 
   <div id="debug-panel">
     <h4>⚡ Debug</h4>
+    <div class="api-status" id="api-status">No key saved — using proximity detection only.</div>
     <div id="debug-status-box">
       <div class="dsb-header">
         <span class="dsb-label" id="dsb-label">STATUS KEY — WAITING…</span>
@@ -271,7 +278,7 @@ body{pointer-events:none;font-family:var(--sans);color:var(--text);overflow:hidd
   <div id="statusbar">
     <span id="status-txt">Waiting for game data…</span>
     <span class="last-update" id="last-update">—</span>
-    <span class="pill" style="margin-left:6px;opacity:.4">v0.47</span>
+    <span class="pill" style="margin-left:6px;opacity:.4">v0.48</span>
   </div>
 
 
@@ -675,6 +682,7 @@ function setView(v){
   const isFields=v==='fields';
   document.getElementById('tab-fields').classList.toggle('active',isFields);
   document.getElementById('tab-animals').classList.toggle('active',!isFields);
+  document.getElementById('fields-heading').style.display=isFields?'flex':'none';
   document.getElementById('summary').style.display=isFields?'flex':'none';
   document.getElementById('field-container').style.display=isFields?'':'none';
   const ac=document.getElementById('animals-container');
