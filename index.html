@@ -88,10 +88,12 @@ body{pointer-events:none;font-family:var(--sans);color:var(--text);overflow:hidd
 #field-container.list .field-card .state-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
 #field-container.list .field-card .prog-bar{position:absolute;bottom:0;left:0;height:2px;transition:width .5s}
 .field-live-name{font-weight:700;font-size:14px;margin-bottom:7px;letter-spacing:.02em}
-.field-live-meta{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px}
+.field-live-meta{display:flex;flex-direction:column;align-items:flex-start;gap:4px;margin-bottom:6px}
 .field-chip{display:inline-flex;align-items:center;gap:3px;font-family:var(--mono);font-size:9px;font-weight:700;text-transform:uppercase;border-radius:10px;padding:2px 6px;background:rgba(255,255,255,.07);color:var(--text)}
+.field-chip.owned{padding:0;background:transparent;border-radius:0;text-transform:none;color:var(--text);font-size:10px}
 .field-chip.crop{background:rgba(78,201,110,.16);color:var(--accent)}
 .field-chip.state{background:rgba(232,160,32,.16);color:var(--accent2)}
+.field-chip.state.ready{background:rgba(78,201,110,.16);color:var(--accent)}
 .field-planted{font-family:var(--mono);font-size:10px;color:var(--dim);margin-bottom:7px}
 .field-live-bottom{display:grid;grid-template-columns:1fr 1.45fr;gap:8px;align-items:center;border-top:1px solid rgba(255,255,255,.06);padding-top:7px}
 .field-growth{text-align:center;font-family:var(--mono);font-size:12px;font-weight:700;color:var(--text)}
@@ -286,7 +288,7 @@ body{pointer-events:none;font-family:var(--sans);color:var(--text);overflow:hidd
   <div id="statusbar">
     <span id="status-txt">Waiting for game data…</span>
     <span class="last-update" id="last-update">—</span>
-    <span class="pill" style="margin-left:6px;opacity:.4">v0.50</span>
+    <span class="pill" style="margin-left:6px;opacity:.4">v0.51</span>
   </div>
 
 
@@ -514,7 +516,7 @@ function render(){
     const cropLabel=capFirst(f.crop)||'None';
     const fertBadge=f.fertilized?'<span style="font-size:10px;background:rgba(232,160,32,.15);border:1px solid rgba(232,160,32,.3);color:#e8a020;border-radius:3px;padding:1px 5px;font-family:var(--mono)">⚗ FERT</span>':'';
     const leftText=state==='ready'?'READY!':state==='idle'?capFirst(f.state):fmtTime(rem);
-    card.innerHTML=`<div class="field-live-name">${f.name}</div><div class="field-live-meta"><span class="field-chip">🏠 ✓ Owned</span><span class="field-chip crop">${cropEmoji(f.crop)} ${cropLabel}</span><span class="field-chip state">📊 ${capFirst(f.state)}</span>${fertBadge}</div><div class="field-planted">⏰ ${fmtPlanted(f.timePlanted)}</div><div class="field-live-bottom"><div class="field-growth">${fmtGrowth(f.growTimeMs)}<small>GROWTH</small></div><div class="field-left">${leftText}<small>LEFT</small></div></div><div class="prog-bar" style="width:${(prog*100).toFixed(1)}%"></div>`;
+    card.innerHTML=`<div class="field-live-name">${f.name}</div><div class="field-live-meta"><span class="field-chip owned">🏠 ✅ Owned</span><span class="field-chip crop">🌱 ${cropLabel}</span><span class="field-chip state ${state}">📊 ${capFirst(f.state)}</span>${fertBadge}</div><div class="field-planted">⏰ ${fmtPlanted(f.timePlanted)}</div><div class="field-live-bottom"><div class="field-growth">${fmtGrowth(f.growTimeMs)}<small>GROWTH</small></div><div class="field-left">${leftText}<small>LEFT</small></div></div><div class="prog-bar" style="width:${(prog*100).toFixed(1)}%"></div>`;
     card.addEventListener('click',()=>{
       sendCommand({type:'notification',text:'🌾 '+f.name+' — '+cropLabel+' — '+fmtTime(rem)});
       if(state==='ready') sendCommand({type:'sfx',sfx:2});
