@@ -50,6 +50,11 @@ body{pointer-events:none;font-family:var(--sans);color:var(--text);overflow:hidd
 #xp-panel .hub-section-title{margin-bottom:9px}
 #fields-heading{padding:7px 10px 5px;background:rgba(10,13,18,.24);flex-shrink:0}
 #fields-feed-status{margin-left:auto;font-family:var(--mono);font-size:9px;font-weight:400;letter-spacing:0;color:var(--dim);text-transform:none}
+#fields-dropdown{margin-top:2px}
+#fields-dropdown>summary{cursor:pointer;list-style:none;display:flex;align-items:center}
+#fields-dropdown>summary::-webkit-details-marker{display:none}
+.dropdown-chevron{margin-left:7px;color:var(--accent);font-size:13px;transition:transform .15s}
+#fields-dropdown:not([open]) .dropdown-chevron{transform:rotate(-90deg)}
 .xp-head{display:flex;justify-content:space-between;gap:12px;margin-bottom:7px}
 .xp-head-col{display:flex;flex-direction:column;gap:2px}
 .xp-head-col.right{text-align:right;align-items:flex-end}
@@ -250,7 +255,8 @@ body{pointer-events:none;font-family:var(--sans);color:var(--text);overflow:hidd
     </div>
   </div>
 
-  <div class="hub-section-title" id="fields-heading">Fields Overview <span id="fields-feed-status">Waiting for field feed</span></div>
+  <details id="fields-dropdown" open>
+    <summary class="hub-section-title" id="fields-heading">Fields Overview <span id="fields-feed-status">Waiting for field feed</span><span class="dropdown-chevron">▾</span></summary>
   <div id="summary">
     <div class="sumcell"><span class="val green" id="sum-ready">0</span>Ready</div>
     <div class="sumcell"><span class="val yellow" id="sum-soon">0</span>&lt; 1h</div>
@@ -259,6 +265,7 @@ body{pointer-events:none;font-family:var(--sans);color:var(--text);overflow:hidd
   </div>
 
   <div id="field-container" class="list empty"></div>
+  </details>
 
   <div id="animals-container">
     <div class="animals-empty" id="animals-empty">🐄 Animal pen tracking coming soon.<br><span style="opacity:.5;font-size:10px;display:block;margin-top:4px">Walk near a pen with 🛠 open to capture keys.</span></div>
@@ -290,7 +297,7 @@ body{pointer-events:none;font-family:var(--sans);color:var(--text);overflow:hidd
   <div id="statusbar">
     <span id="status-txt">Waiting for game data…</span>
     <span class="last-update" id="last-update">—</span>
-    <span class="pill" style="margin-left:6px;opacity:.4">v0.55</span>
+    <span class="pill" style="margin-left:6px;opacity:.4">v0.56</span>
   </div>
 
 
