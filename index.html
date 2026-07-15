@@ -106,6 +106,9 @@ body{pointer-events:none;font-family:var(--sans);color:var(--text);overflow:hidd
 .state-growing .state-dot{background:#4a90d9;box-shadow:0 0 6px #4a90d9}
 .state-growing .timer{color:#4a90d9}
 .state-growing .prog-bar{background:#4a90d9}
+.state-idle .state-dot{background:var(--dim)}
+.state-idle .timer{color:var(--dim)}
+.state-idle .prog-bar{background:var(--dim)}
 
 /* ANIMALS */
 #animals-container{overflow-y:auto;padding:8px;scrollbar-width:thin;scrollbar-color:rgba(78,201,110,.2) transparent;min-height:0;flex:1;display:none}
@@ -181,7 +184,6 @@ body{pointer-events:none;font-family:var(--sans);color:var(--text);overflow:hidd
       <option value="3600000">Auto: 1h</option>
     </select>
     <span style="flex:1"></span>
-    <button class="tbtn" id="btn-apikey" title="API Key settings">🔑</button>
     <button class="tbtn" id="btn-debug" title="Debug panel">🛠</button>
   </div>
 
@@ -260,7 +262,7 @@ body{pointer-events:none;font-family:var(--sans);color:var(--text);overflow:hidd
   </div>
 
   <div id="debug-panel">
-    <h4>⚡ Debug</h4>
+    <div class="dsb-header"><h4 style="flex:1">⚡ Debug</h4><button class="dbtn" id="btn-apikey">Manual API fallback</button></div>
     <div class="api-status" id="api-status">No key saved — using proximity detection only.</div>
     <div id="debug-status-box">
       <div class="dsb-header">
@@ -278,7 +280,7 @@ body{pointer-events:none;font-family:var(--sans);color:var(--text);overflow:hidd
   <div id="statusbar">
     <span id="status-txt">Waiting for game data…</span>
     <span class="last-update" id="last-update">—</span>
-    <span class="pill" style="margin-left:6px;opacity:.4">v0.48</span>
+    <span class="pill" style="margin-left:6px;opacity:.4">v0.49</span>
   </div>
 
 
@@ -290,6 +292,9 @@ body{pointer-events:none;font-family:var(--sans);color:var(--text);overflow:hidd
 // e.g. https://tycoon-proxy.YOUR-NAME.workers.dev
 const PROXY_BASE  = 'https://tycoon-proxy.YOUR-NAME.workers.dev/proxy';
 const FIELDS_URL  = PROXY_BASE + '/farming/fields.json';
+const PUBLIC_FIELDS_URL = location.hostname==='127.0.0.1'
+  ? '/mock-fields.json'
+  : 'https://api.goobie.uk/beta/farming/fields';
 const CACHE_KEY      = 'farmhud_fields';
 const PENS_KEY       = 'farmhud_pens';
 const APIKEY_KEY     = 'farmhud_apikey';
@@ -330,6 +335,7 @@ const penCache = (()=>{
   try{const s=localStorage.getItem(PENS_KEY);return s?JSON.parse(s):{}}catch(e){return {}}
 })();
 let apiKey=(()=>{try{return localStorage.getItem(APIKEY_KEY)||''}catch(e){return ''}})();
+let publicKey='';
 let apiInterval=(()=>{try{return parseInt(localStorage.getItem(APIINTERVAL_KEY))||600000}catch(e){return 600000}})();
 
 let isGrid=false, autoTimer=null, apiPollTimer=null;
@@ -346,10 +352,13 @@ function saveApiInterval(v){try{localStorage.setItem(APIINTERVAL_KEY,v)}catch(e)
 
 // ── API FETCH ─────────────────────────────────────────────────────────────
 async function fetchFieldsFromAPI(){
-  if(!apiKey) return;
+  if(!publicKey&&!apiKey) return;
   try{
     setStatus('Fetching API…', false);
-    const res = await fetch(getFieldsURL(), {headers:{'X-Tycoon-Key': apiKey}});
+    const usingPublicKey=!!publicKey;
+    const res = await fetch(usingPublicKey?PUBLIC_FIELDS_URL:getFieldsURL(), {
+      headers:usingPublicKey?{'x-tycoon-public-key':publicKey}:{'X-Tycoon-Key':apiKey}
+    });
     if(res.status===401||res.status===403){
       setApiStatus('❌ Invalid key — check and re-enter.', 'error');
       setStatus('API key error', false);
@@ -362,9 +371,10 @@ async function fetchFieldsFromAPI(){
     }
     if(!res.ok){setStatus('API error '+res.status, false);return}
     const data = await res.json();
-    if(!data.fields){setStatus('Unexpected API response', false);return}
-    parseAPIFields(data.fields);
-    setApiStatus('✓ Active — last fetch: '+new Date().toLocaleTimeString(), 'ok');
+    const fields=data.fields||(data.data&&data.data.fields);
+    if(!Array.isArray(fields)){setStatus('Unexpected API response', false);return}
+    parseAPIFields(fields);
+    setApiStatus('✓ Automatic field feed active — last fetch: '+new Date().toLocaleTimeString(), 'ok');
     setStatus('API sync OK', true);
   }catch(e){
     setStatus('API fetch failed', false);
@@ -372,22 +382,20 @@ async function fetchFieldsFromAPI(){
 }
 
 function parseAPIFields(fields){
+  // The API is the complete owned-field snapshot. Replace proximity/cache
+  // entries so stale fields do not inflate the totals.
+  Object.keys(fieldCache).forEach(k=>delete fieldCache[k]);
   // Only process owned fields
   fields.filter(f=>f.isOwned).forEach(f=>{
     const name = f.name;
-    const crop = (f.crop_name||'').toLowerCase();
+    const crop = (f.crop_name||f.seed||f.crop||'').toLowerCase();
     const fertilized = !!f.isFertilized;
     const growTimeMs = (f.growth_time||0)*1000;
-    const harvestTime = f.harvest_time ? f.harvest_time*1000 : 0; // unix ms
-    const state = f.state; // 'growing', 'ready', 'cultivating', 'planting'
-
-    // Only track growing and ready — skip cultivating/planting
-    if(state==='growing'||state==='ready'){
-      fieldCache[name]={name, crop, harvestTime, growTimeMs, fertilized, state, source:'api'};
-    } else {
-      // Field is being worked on — remove from cache if it was there
-      if(fieldCache[name]) delete fieldCache[name];
-    }
+    const calculatedHarvest=(f.time_planted&&f.growth_time)?(f.time_planted+f.growth_time)*1000:0;
+    const harvestTime = f.harvest_time ? f.harvest_time*1000 : calculatedHarvest;
+    const rawState=String(f.state||'growing').toLowerCase();
+    const state=harvestTime&&harvestTime<=Date.now()?'ready':rawState;
+    fieldCache[name]={name,crop,harvestTime,growTimeMs,fertilized,state,source:'api'};
   });
   saveFieldCache();
   render();
@@ -440,6 +448,7 @@ function getRem(f){
   return Math.max(0, f.harvestTime - Date.now());
 }
 function getState(f){
+  if(f.state!=='growing'&&f.state!=='ready'&&f.harvestTime===0) return 'idle';
   const r=getRem(f);
   if(r<=0) return 'ready';
   if(r<3600000) return 'soon';
@@ -491,9 +500,9 @@ function render(){
     const cropLabel=capFirst(f.crop);
     const fertBadge=f.fertilized?'<span style="font-size:10px;background:rgba(232,160,32,.15);border:1px solid rgba(232,160,32,.3);color:#e8a020;border-radius:3px;padding:1px 5px;font-family:var(--mono)">⚗ FERT</span>':'';
     if(isGrid){
-      card.innerHTML=`<span class="state-dot"></span><div class="fn">${cropEmoji(f.crop)} ${f.name}</div><div class="seed">${cropLabel}</div>${fertBadge}<div class="timer">${fmtTime(rem)}</div><div class="prog-bar" style="width:${(prog*100).toFixed(1)}%"></div>`;
+      card.innerHTML=`<span class="state-dot"></span><div class="fn">${cropEmoji(f.crop)} ${f.name}</div><div class="seed">${cropLabel}</div>${fertBadge}<div class="timer">${state==='idle'?capFirst(f.state):fmtTime(rem)}</div><div class="prog-bar" style="width:${(prog*100).toFixed(1)}%"></div>`;
     }else{
-      card.innerHTML=`<span class="state-dot"></span><span class="fn">${cropEmoji(f.crop)} ${f.name}</span><span class="seed">${cropLabel}</span>${fertBadge}<span class="timer">${fmtTime(rem)}</span><div class="prog-bar" style="width:${(prog*100).toFixed(1)}%"></div>`;
+      card.innerHTML=`<span class="state-dot"></span><span class="fn">${cropEmoji(f.crop)} ${f.name}</span><span class="seed">${cropLabel}</span>${fertBadge}<span class="timer">${state==='idle'?capFirst(f.state):fmtTime(rem)}</span><div class="prog-bar" style="width:${(prog*100).toFixed(1)}%"></div>`;
     }
     card.addEventListener('click',()=>{
       sendCommand({type:'notification',text:'🌾 '+f.name+' — '+cropLabel+' — '+fmtTime(rem)});
@@ -749,7 +758,7 @@ document.getElementById('btn-api-clear').addEventListener('click',()=>{
 // ── API POLLING ───────────────────────────────────────────────────────────
 function startApiPolling(){
   stopApiPolling();
-  if(!apiKey||!apiInterval) return;
+  if((!publicKey&&!apiKey)||!apiInterval) return;
   apiPollTimer=setInterval(fetchFieldsFromAPI, apiInterval);
 }
 function stopApiPolling(){clearInterval(apiPollTimer);apiPollTimer=null}
@@ -764,7 +773,7 @@ function requestData(){
   sendCommand({
     type:'getNamedData',
     keys:[
-      'status','exp_farming_farming','level_farming_farming',
+      'pkey','status','exp_farming_farming','level_farming_farming',
       'bxp_farming_farming','business_exp_farming_farming','farming_bxp',
       'job_name','job'
     ]
@@ -780,6 +789,12 @@ function onGameData(data){
   // Log after parsing. logDebug records lastStatusRaw for the diagnostics
   // panel, so running it first made every new field status look unchanged.
   logDebug(data);
+  if(data.pkey && data.pkey!==publicKey){
+    publicKey=String(data.pkey);
+    setApiStatus('✓ Public key received — automatic field feed enabled.','ok');
+    fetchFieldsFromAPI();
+    startApiPolling();
+  }
   if(data.exp_farming_farming!==undefined) updateXP(data.exp_farming_farming);
   const levelValue=data.level_farming_farming ?? data.farming_level ?? data.level_farming;
   if(levelValue!==undefined) updateFarmingLevel(levelValue);
@@ -890,7 +905,7 @@ document.getElementById('btn-clear').addEventListener('click',()=>{
 });
 document.getElementById('btn-refresh').addEventListener('click',()=>{
   requestData();
-  if(apiKey) fetchFieldsFromAPI();
+  if(publicKey||apiKey) fetchFieldsFromAPI();
 });
 document.getElementById('btn-layout').addEventListener('click',()=>{
   isGrid=!isGrid;
