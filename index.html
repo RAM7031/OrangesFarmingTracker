@@ -43,12 +43,29 @@ body{pointer-events:none;font-family:var(--sans);color:var(--text);overflow:hidd
 .api-status.ok{color:var(--accent)}
 .api-status.error{color:var(--accent3)}
 
-/* XP BAR */
-#xp-bar{display:flex;align-items:center;gap:8px;padding:5px 10px;border-bottom:1px solid var(--border);background:rgba(10,13,18,.3);flex-shrink:0}
-.xp-track{flex:1;height:4px;background:rgba(255,255,255,.08);border-radius:2px;overflow:hidden}
-.xp-fill{height:100%;background:var(--accent);border-radius:2px;transition:width .6s}
-.xp-val{font-family:var(--mono);font-size:10px;color:var(--accent);white-space:nowrap}
-.xp-lvl{font-family:var(--mono);font-size:11px;font-weight:700;color:var(--accent);white-space:nowrap}
+/* FARMING PROGRESS */
+#xp-panel{padding:10px 12px;border-bottom:1px solid var(--border);background:rgba(10,13,18,.38);flex-shrink:0}
+.xp-head{display:flex;justify-content:space-between;gap:12px;margin-bottom:7px}
+.xp-head-col{display:flex;flex-direction:column;gap:2px}
+.xp-head-col.right{text-align:right;align-items:flex-end}
+.xp-label{font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em}
+.xp-number{font-family:var(--mono);font-size:17px;font-weight:700;color:var(--accent2);line-height:1}
+.xp-number.current{color:var(--text)}
+.xp-track{height:6px;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.07);border-radius:3px;overflow:hidden}
+.xp-fill{height:100%;background:linear-gradient(90deg,var(--accent2),var(--accent));border-radius:2px;transition:width .6s}
+.xp-progress-copy{display:flex;justify-content:space-between;margin-top:4px;font-family:var(--mono);font-size:9px;color:var(--dim)}
+.session-card{margin-top:9px;padding:8px;border:1px solid rgba(232,160,32,.4);border-radius:5px;background:rgba(232,160,32,.08)}
+.session-title{font-size:12px;font-weight:700;color:var(--accent2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px}
+.session-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.session-stat:last-child{text-align:right}
+.session-stat-label{font-size:10px;color:var(--dim)}
+.session-stat-value{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--accent)}
+.xp-metrics{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:7px}
+.xp-metric{padding:7px;text-align:center;border-radius:4px;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.035)}
+.xp-metric-label{font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.04em}
+.xp-metric-value{display:block;margin-top:2px;font-family:var(--mono);font-size:17px;font-weight:700}
+.xp-metric-value.bxp{color:var(--accent)}
+.xp-metric-value.drops{color:var(--accent2)}
 
 /* SUMMARY */
 #summary{display:flex;border-bottom:1px solid var(--border);flex-shrink:0}
@@ -190,11 +207,30 @@ body{pointer-events:none;font-family:var(--sans);color:var(--text);overflow:hidd
     <div class="api-status" id="api-status">No key saved — using proximity detection only.</div>
   </div>
 
-  <div id="xp-bar">
-    <span class="xp-lvl">🌾 XP</span>
+  <div id="xp-panel">
+    <div class="xp-head">
+      <div class="xp-head-col">
+        <span class="xp-label">Farming Level</span>
+        <span class="xp-number" id="farming-level">—</span>
+      </div>
+      <div class="xp-head-col right">
+        <span class="xp-label">Current XP</span>
+        <span class="xp-number current" id="xp-current">0</span>
+      </div>
+    </div>
     <div class="xp-track"><div class="xp-fill" id="xp-fill" style="width:0%"></div></div>
-    <span class="xp-val" id="xp-val">— XP</span>
-    <button class="dbtn" id="btn-xp-milestone" style="margin-left:4px;padding:2px 6px;font-size:10px">1M</button>
+    <div class="xp-progress-copy"><span id="xp-progress-status">Waiting for data…</span><span id="xp-next">Next: —</span></div>
+    <div class="session-card">
+      <div class="session-title">Session Tracker</div>
+      <div class="session-row">
+        <div class="session-stat"><div class="session-stat-label">Session XP Gain</div><div class="session-stat-value" id="session-xp">0 XP</div></div>
+        <div class="session-stat"><div class="session-stat-label">Avg XP / Drop</div><div class="session-stat-value" id="avg-xp">0 XP</div></div>
+      </div>
+    </div>
+    <div class="xp-metrics">
+      <div class="xp-metric"><span class="xp-metric-label">Farming BXP</span><span class="xp-metric-value bxp" id="farming-bxp">0</span></div>
+      <div class="xp-metric"><span class="xp-metric-label">Drops Count</span><span class="xp-metric-value drops" id="drop-count">0</span></div>
+    </div>
   </div>
 
   <div id="summary">
@@ -235,7 +271,7 @@ body{pointer-events:none;font-family:var(--sans);color:var(--text);overflow:hidd
   <div id="statusbar">
     <span id="status-txt">Waiting for game data…</span>
     <span class="last-update" id="last-update">—</span>
-    <span class="pill" style="margin-left:6px;opacity:.4">v0.46</span>
+    <span class="pill" style="margin-left:6px;opacity:.4">v0.47</span>
   </div>
 
 
@@ -292,7 +328,8 @@ let apiInterval=(()=>{try{return parseInt(localStorage.getItem(APIINTERVAL_KEY))
 let isGrid=false, autoTimer=null, apiPollTimer=null;
 let lastStatusRaw='', bannerTimeout=null;
 let currentView='fields';
-let xpMilestoneSize=1000000, lastXpRaw=0;
+let xpMilestoneSize=1000000, lastXpRaw=0, farmingLevel=null, farmingBxp=0;
+let sessionStartXp=null, previousXp=null, sessionXpGain=0, xpDropCount=0;
 const notifiedReady=new Set(), notifiedPens=new Set();
 
 function saveFieldCache(){try{localStorage.setItem(CACHE_KEY,JSON.stringify(fieldCache))}catch(e){}}
@@ -351,20 +388,44 @@ function parseAPIFields(fields){
 }
 
 // ── XP ────────────────────────────────────────────────────────────────────
-function updateXP(raw){lastXpRaw=parseFloat(raw);if(isNaN(lastXpRaw))return;renderXP()}
+function updateXP(raw){
+  const nextXp=parseFloat(raw);
+  if(isNaN(nextXp)) return;
+  if(sessionStartXp===null){
+    sessionStartXp=nextXp;
+  }else if(previousXp!==null && nextXp>previousXp){
+    sessionXpGain+=nextXp-previousXp;
+    xpDropCount++;
+  }
+  previousXp=nextXp;
+  lastXpRaw=nextXp;
+  renderXP();
+}
+function updateFarmingLevel(raw){
+  const value=parseFloat(raw);
+  farmingLevel=isNaN(value)?String(raw):value;
+  renderXP();
+}
+function updateFarmingBxp(raw){
+  const value=parseFloat(raw);
+  farmingBxp=isNaN(value)?0:value;
+  renderXP();
+}
 function renderXP(){
   const xp=lastXpRaw,ms=xpMilestoneSize;
   const prev=Math.floor(xp/ms)*ms,next=prev+ms;
   const pct=Math.min(100,((xp-prev)/ms)*100);
   const fmt=v=>v>=1000000?(v/1000000).toFixed(v%1000000===0?0:2)+'M':v>=1000?(v/1000).toFixed(1)+'k':Math.floor(v).toString();
-  document.getElementById('xp-val').textContent=fmt(xp)+' / '+fmt(next);
+  document.getElementById('farming-level').textContent=farmingLevel===null?'—':farmingLevel;
+  document.getElementById('xp-current').textContent=fmt(xp);
   document.getElementById('xp-fill').style.width=pct.toFixed(1)+'%';
+  document.getElementById('xp-progress-status').textContent=xp>0?fmt(xp-prev)+' earned this level':'Waiting for data…';
+  document.getElementById('xp-next').textContent='Next: '+fmt(next);
+  document.getElementById('session-xp').textContent=fmt(sessionXpGain)+' XP';
+  document.getElementById('avg-xp').textContent=fmt(xpDropCount?sessionXpGain/xpDropCount:0)+' XP';
+  document.getElementById('farming-bxp').textContent=fmt(farmingBxp);
+  document.getElementById('drop-count').textContent=xpDropCount;
 }
-document.getElementById('btn-xp-milestone').addEventListener('click',()=>{
-  xpMilestoneSize=xpMilestoneSize===1000000?10000000:1000000;
-  document.getElementById('btn-xp-milestone').textContent=xpMilestoneSize===1000000?'1M':'10M';
-  renderXP();
-});
 
 // ── HELPERS ───────────────────────────────────────────────────────────────
 function getRem(f){
@@ -694,7 +755,11 @@ function requestData(){
   sendCommand({type:'getData'});
   sendCommand({
     type:'getNamedData',
-    keys:['status','exp_farming_farming','job_name','job']
+    keys:[
+      'status','exp_farming_farming','level_farming_farming',
+      'bxp_farming_farming','business_exp_farming_farming','farming_bxp',
+      'job_name','job'
+    ]
   });
 }
 
@@ -708,6 +773,10 @@ function onGameData(data){
   // panel, so running it first made every new field status look unchanged.
   logDebug(data);
   if(data.exp_farming_farming!==undefined) updateXP(data.exp_farming_farming);
+  const levelValue=data.level_farming_farming ?? data.farming_level ?? data.level_farming;
+  if(levelValue!==undefined) updateFarmingLevel(levelValue);
+  const bxpValue=data.bxp_farming_farming ?? data.business_exp_farming_farming ?? data.farming_bxp;
+  if(bxpValue!==undefined) updateFarmingBxp(bxpValue);
   if(data.job_name) document.getElementById('job-pill').textContent=data.job_name;
   else if(data.job) document.getElementById('job-pill').textContent=data.job;
   parsePenData(data);
