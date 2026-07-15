@@ -290,7 +290,7 @@ body{pointer-events:none;font-family:var(--sans);color:var(--text);overflow:hidd
   <div id="statusbar">
     <span id="status-txt">Waiting for game data…</span>
     <span class="last-update" id="last-update">—</span>
-    <span class="pill" style="margin-left:6px;opacity:.4">v0.53</span>
+    <span class="pill" style="margin-left:6px;opacity:.4">v0.55</span>
   </div>
 
 
@@ -308,6 +308,7 @@ const PUBLIC_FIELDS_URL = location.hostname==='127.0.0.1'
 const CACHE_KEY      = 'farmhud_fields';
 const PENS_KEY       = 'farmhud_pens';
 const APIKEY_KEY     = 'farmhud_apikey';
+const PUBLICKEY_KEY  = 'farmhud_publickey';
 const APIINTERVAL_KEY= 'farmhud_apiinterval';
 const PROXYURL_KEY   = 'farmhud_proxy';
 
@@ -345,7 +346,7 @@ const penCache = (()=>{
   try{const s=localStorage.getItem(PENS_KEY);return s?JSON.parse(s):{}}catch(e){return {}}
 })();
 let apiKey=(()=>{try{return localStorage.getItem(APIKEY_KEY)||''}catch(e){return ''}})();
-let publicKey='';
+let publicKey=(()=>{try{return localStorage.getItem(PUBLICKEY_KEY)||''}catch(e){return ''}})();
 let fieldFeedState='waiting';
 let apiInterval=(()=>{try{return parseInt(localStorage.getItem(APIINTERVAL_KEY))||600000}catch(e){return 600000}})();
 
@@ -743,8 +744,8 @@ function updateApiKeyUI(){
   const proxyInput=document.getElementById('proxy-url-input');
   if(sel) sel.value=apiInterval;
   try{const p=localStorage.getItem(PROXYURL_KEY);if(p&&proxyInput)proxyInput.value=p}catch(e){}
-  if(apiKey){
-    input.value=apiKey;
+  if(publicKey||apiKey){
+    input.value=publicKey||apiKey;
     input.className='ok';
     const opt=sel?sel.options[sel.selectedIndex]:null;
     setApiStatus('✓ Key saved — '+(opt?opt.text.split('(')[0].trim():'auto'), 'ok');
@@ -777,14 +778,14 @@ document.getElementById('btn-api-key-open').addEventListener('click',()=>{
 document.getElementById('btn-api-save').addEventListener('click',()=>{
   const val=document.getElementById('api-key-input').value.trim();
   if(!val){setApiStatus('⚠ Enter a key first.','error');return}
-  apiKey=val;saveApiKey(val);
+  publicKey=val;try{localStorage.setItem(PUBLICKEY_KEY,val)}catch(e){}
   document.getElementById('api-key-input').className='ok';
   setApiStatus('✓ Key saved!','ok');
   startApiPolling();
   fetchFieldsFromAPI();
 });
 document.getElementById('btn-api-clear').addEventListener('click',()=>{
-  apiKey='';saveApiKey('');
+  publicKey=''; apiKey=''; saveApiKey(''); try{localStorage.removeItem(PUBLICKEY_KEY)}catch(e){}
   document.getElementById('api-key-input').value='';
   document.getElementById('api-key-input').className='';
   setApiStatus('Key cleared.','');
