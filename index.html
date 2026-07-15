@@ -12,7 +12,7 @@
 }
 html,body{height:100%;margin:0;padding:0;background:transparent}
 body{pointer-events:none;font-family:var(--sans);color:var(--text);overflow:hidden}
-#hud{position:fixed;bottom:16px;right:16px;width:400px;background:var(--panel);border:1px solid var(--border);border-radius:10px;overflow:hidden;pointer-events:auto;min-width:280px;display:flex;flex-direction:column;font-size:13px;resize:both;max-height:90vh}
+#hud{position:fixed;bottom:16px;right:16px;width:400px;height:auto;background:var(--panel);border:1px solid var(--border);border-radius:10px;overflow:hidden;pointer-events:auto;min-width:280px;display:flex;flex-direction:column;font-size:13px;resize:horizontal;max-height:90vh}
 #titlebar{display:flex;align-items:center;gap:6px;background:rgba(10,13,18,.92);border-bottom:1px solid var(--border);padding:7px 10px;user-select:none;flex-shrink:0}
 .logo{font-family:var(--mono);font-size:11px;color:var(--accent);letter-spacing:.12em;text-transform:uppercase;white-space:nowrap}
 .spacer{flex:1}
@@ -288,7 +288,7 @@ body{pointer-events:none;font-family:var(--sans);color:var(--text);overflow:hidd
   <div id="statusbar">
     <span id="status-txt">Waiting for game data…</span>
     <span class="last-update" id="last-update">—</span>
-    <span class="pill" style="margin-left:6px;opacity:.4">v0.51</span>
+    <span class="pill" style="margin-left:6px;opacity:.4">v0.52</span>
   </div>
 
 
@@ -433,6 +433,12 @@ function updateFarmingBxp(raw){
   const value=parseFloat(raw);
   farmingBxp=isNaN(value)?0:value;
   renderXP();
+}
+function findPublicKey(value, depth=0){
+  if(!value||typeof value!=='object'||depth>3) return '';
+  const direct=value.pkey||value.public_key||value.publicKey;
+  if(direct) return String(direct);
+  return findPublicKey(value.data,depth+1)||findPublicKey(value.payload,depth+1);
 }
 function renderXP(){
   const xp=lastXpRaw,ms=xpMilestoneSize;
@@ -802,11 +808,14 @@ function onGameData(data){
   // Log after parsing. logDebug records lastStatusRaw for the diagnostics
   // panel, so running it first made every new field status look unchanged.
   logDebug(data);
-  if(data.pkey && data.pkey!==publicKey){
-    publicKey=String(data.pkey);
+  const receivedPublicKey=findPublicKey(data);
+  if(receivedPublicKey && receivedPublicKey!==publicKey){
+    publicKey=receivedPublicKey;
     setApiStatus('✓ Public key received — automatic field feed enabled.','ok');
     fetchFieldsFromAPI();
     startApiPolling();
+  }else if(!publicKey&&!apiKey){
+    setApiStatus('Waiting for Transport Tycoon public key — open Debug for details.','error');
   }
   if(data.exp_farming_farming!==undefined) updateXP(data.exp_farming_farming);
   const levelValue=data.level_farming_farming ?? data.farming_level ?? data.level_farming;
@@ -886,7 +895,8 @@ window.addEventListener('message',e=>{
   const msg=envelope.fromTycoonScript===true && envelope.data && typeof envelope.data==='object'
     ? envelope.data
     : envelope;
-  if(msg.type==='data'&&msg.data&&typeof msg.data==='object'){onGameData(msg.data);return}
+  // Some menu versions reply as {data:{pkey:...}} without a type field.
+  if(msg.data&&typeof msg.data==='object'&&(msg.type==='data'||!msg.type)){onGameData(msg.data);return}
   if(!msg.type){onGameData(msg);return}
   if(msg.type==='data'){const o=Object.assign({},msg);delete o.type;delete o.fromTycoonScript;if(Object.keys(o).length>0)onGameData(o)}
 });
