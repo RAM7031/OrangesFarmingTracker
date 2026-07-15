@@ -197,6 +197,7 @@ body{pointer-events:none;font-family:var(--sans);color:var(--text);overflow:hidd
       <option value="3600000">Auto: 1h</option>
     </select>
     <span style="flex:1"></span>
+    <button class="tbtn" id="btn-api-key-open" title="Save your field API key">API Key</button>
     <button class="tbtn" id="btn-debug" title="Debug panel">🛠</button>
   </div>
 
@@ -766,6 +767,12 @@ document.getElementById('btn-apikey').addEventListener('click',()=>{
   const panel=document.getElementById('api-setup');
   panel.classList.toggle('visible');
   updateApiKeyUI();
+});
+document.getElementById('btn-api-key-open').addEventListener('click',()=>{
+  const panel=document.getElementById('api-setup');
+  panel.classList.toggle('visible');
+  updateApiKeyUI();
+  if(panel.classList.contains('visible')) document.getElementById('api-key-input').focus();
 });
 document.getElementById('btn-api-save').addEventListener('click',()=>{
   const val=document.getElementById('api-key-input').value.trim();
