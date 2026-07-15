@@ -1,6 +1,4 @@
-<!doctype html>
-<html lang="en">
-<head>
+<html lang="en"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Farm HUD – Transport Tycoon</title>
@@ -156,7 +154,7 @@ body{pointer-events:none;font-family:var(--sans);color:var(--text);overflow:hidd
     <button class="tbtn" id="btn-clear">🗑 Clear</button>
     <select id="refresh-select">
       <option value="0">Auto: Off</option>
-      <option value="1000" selected>Auto: 1s</option>
+      <option value="1000" selected="">Auto: 1s</option>
       <option value="60000">Auto: 1m</option>
       <option value="600000">Auto: 10m</option>
       <option value="3600000">Auto: 1h</option>
@@ -183,7 +181,7 @@ body{pointer-events:none;font-family:var(--sans);color:var(--text);overflow:hidd
       <select id="api-interval-select" style="font-family:var(--mono);font-size:11px;background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.15);color:var(--text);border-radius:5px;padding:4px 6px;flex:1">
         <option value="0">Manual only</option>
         <option value="300000">Every 5m (200 charges/day)</option>
-        <option value="600000" selected>Every 10m (144 charges/day)</option>
+        <option value="600000" selected="">Every 10m (144 charges/day)</option>
         <option value="1200000">Every 20m (72 charges/day)</option>
         <option value="1800000">Every 30m (48 charges/day)</option>
         <option value="3600000">Every 1h (24 charges/day)</option>
@@ -206,7 +204,7 @@ body{pointer-events:none;font-family:var(--sans);color:var(--text);overflow:hidd
     <div class="sumcell"><span class="val" id="sum-total">0</span>Owned</div>
   </div>
 
-  <div id="field-container" class="list"></div>
+  <div id="field-container" class="list empty"></div>
 
   <div id="animals-container">
     <div class="animals-empty" id="animals-empty">🐄 Animal pen tracking coming soon.<br><span style="opacity:.5;font-size:10px;display:block;margin-top:4px">Walk near a pen with 🛠 open to capture keys.</span></div>
@@ -240,7 +238,7 @@ body{pointer-events:none;font-family:var(--sans);color:var(--text);overflow:hidd
     <span class="pill" style="margin-left:6px;opacity:.4">v0.46</span>
   </div>
 
-</div>
+
 <script>
 (function(){
 
@@ -688,16 +686,27 @@ function startApiPolling(){
 function stopApiPolling(){clearInterval(apiPollTimer);apiPollTimer=null}
 
 // ── GAME COMMUNICATION ────────────────────────────────────────────────────
-function sendCommand(obj){window.top.postMessage(obj,'*')}
-function requestData(){sendCommand({type:'getData'})}
+function sendCommand(obj){window.parent.postMessage(obj,'*')}
+function requestData(){
+  // Transport Tycoon's URL-app bridge only returns arbitrary character values
+  // when they are explicitly requested. Keep getData for compatibility with
+  // older menu versions, then request the farming values this HUD consumes.
+  sendCommand({type:'getData'});
+  sendCommand({
+    type:'getNamedData',
+    keys:['status','exp_farming_farming','job_name','job']
+  });
+}
 
 function onGameData(data){
-  logDebug(data);
   const rawStatus=data.status!==undefined?String(data.status):null;
   if(rawStatus!==null && rawStatus!==lastStatusRaw){
     lastStatusRaw=rawStatus;
     parseStatusFallback(rawStatus);
   }
+  // Log after parsing. logDebug records lastStatusRaw for the diagnostics
+  // panel, so running it first made every new field status look unchanged.
+  logDebug(data);
   if(data.exp_farming_farming!==undefined) updateXP(data.exp_farming_farming);
   if(data.job_name) document.getElementById('job-pill').textContent=data.job_name;
   else if(data.job) document.getElementById('job-pill').textContent=data.job;
@@ -765,7 +774,13 @@ document.getElementById('btn-copy-lines').addEventListener('click',()=>{
 // ── MESSAGE LISTENER ──────────────────────────────────────────────────────
 window.addEventListener('message',e=>{
   if(!e.data||typeof e.data!=='object') return;
-  const msg=e.data;
+  // The F1 URL-app menu wraps replies in
+  // { fromTycoonScript: true, data: {...} }. Unwrap that envelope before
+  // checking the payload shape, otherwise the farming keys are never parsed.
+  const envelope=e.data;
+  const msg=envelope.fromTycoonScript===true && envelope.data && typeof envelope.data==='object'
+    ? envelope.data
+    : envelope;
   if(msg.type==='data'&&msg.data&&typeof msg.data==='object'){onGameData(msg.data);return}
   if(!msg.type){onGameData(msg);return}
   if(msg.type==='data'){const o=Object.assign({},msg);delete o.type;delete o.fromTycoonScript;if(Object.keys(o).length>0)onGameData(o)}
@@ -827,5 +842,6 @@ if(apiKey){
 
 })();
 </script>
-</body>
-</html>
+
+
+</body></html>
