@@ -257,13 +257,6 @@ body{pointer-events:none;font-family:var(--sans);color:var(--text);overflow:hidd
 
   <details id="fields-dropdown" open>
     <summary class="hub-section-title" id="fields-heading">Fields Overview <span id="fields-feed-status">Waiting for field feed</span><span class="dropdown-chevron">▾</span></summary>
-  <div id="summary">
-    <div class="sumcell"><span class="val green" id="sum-ready">0</span>Ready</div>
-    <div class="sumcell"><span class="val yellow" id="sum-soon">0</span>&lt; 1h</div>
-    <div class="sumcell"><span class="val" id="sum-growing">0</span>Growing</div>
-    <div class="sumcell"><span class="val" id="sum-total">0</span>Owned</div>
-  </div>
-
   <div id="field-container" class="list empty"></div>
   </details>
 
@@ -297,7 +290,7 @@ body{pointer-events:none;font-family:var(--sans);color:var(--text);overflow:hidd
   <div id="statusbar">
     <span id="status-txt">Waiting for game data…</span>
     <span class="last-update" id="last-update">—</span>
-    <span class="pill" style="margin-left:6px;opacity:.4">v0.57</span>
+    <span class="pill" style="margin-left:6px;opacity:.4">v0.58</span>
   </div>
 
 
@@ -553,6 +546,7 @@ function render(){
 }
 
 function updateSummary(list){
+  if(!document.getElementById('sum-ready')) return;
   document.getElementById('sum-ready').textContent=list.filter(f=>getState(f)==='ready').length;
   document.getElementById('sum-soon').textContent=list.filter(f=>getState(f)==='soon').length;
   document.getElementById('sum-growing').textContent=list.filter(f=>getState(f)==='growing').length;
