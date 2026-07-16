@@ -297,7 +297,7 @@ body{pointer-events:none;font-family:var(--sans);color:var(--text);overflow:hidd
   <div id="statusbar">
     <span id="status-txt">Waiting for game data…</span>
     <span class="last-update" id="last-update">—</span>
-    <span class="pill" style="margin-left:6px;opacity:.4">v0.56</span>
+    <span class="pill" style="margin-left:6px;opacity:.4">v0.57</span>
   </div>
 
 
@@ -411,7 +411,7 @@ function parseAPIFields(fields){
   // entries so stale fields do not inflate the totals.
   Object.keys(fieldCache).forEach(k=>delete fieldCache[k]);
   // Only process owned fields
-  fields.filter(f=>f.isOwned).forEach(f=>{
+  fields.forEach(f=>{
     const name = f.name;
     const crop = (f.crop_name||f.seed||f.crop||'').toLowerCase();
     const fertilized = !!f.isFertilized;
@@ -420,7 +420,7 @@ function parseAPIFields(fields){
     const harvestTime = f.harvest_time ? f.harvest_time*1000 : calculatedHarvest;
     const rawState=String(f.state||'growing').toLowerCase();
     const state=harvestTime&&harvestTime<=Date.now()?'ready':rawState;
-    fieldCache[name]={name,crop,harvestTime,growTimeMs,timePlanted:f.time_planted?f.time_planted*1000:null,fertilized,state,source:'api'};
+    fieldCache[name]={name,crop,harvestTime,growTimeMs,timePlanted:f.time_planted?f.time_planted*1000:null,fertilized,state,isOwned:f.isOwned!==false,source:'api'};
   });
   saveFieldCache();
   render();
@@ -480,6 +480,7 @@ function getRem(f){
   return Math.max(0, f.harvestTime - Date.now());
 }
 function getState(f){
+  if(f.state==='harvested'||f.state==='harvesting'||f.state==='planted'||f.state==='idle') return 'idle';
   if(f.state!=='growing'&&f.state!=='ready'&&f.harvestTime===0) return 'idle';
   const r=getRem(f);
   if(r<=0) return 'ready';
